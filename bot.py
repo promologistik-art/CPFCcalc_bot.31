@@ -850,10 +850,27 @@ async def cmd_start(message: types.Message, state: FSMContext):
     subscription = user_db.get_subscription_status(message.from_user.id)
     profile = user_db.get_profile(message.from_user.id)
     
-    welcome_text = f"FoodTracker Bot\n\nПросто напишите, что съели — я всё посчитаю!\n\nСтатус подписки: {format_subscription_status(subscription)}"
+    # ========== ВОТ ЭТОТ БЛОК НУЖНО ЗАМЕНИТЬ ==========
+    # Старый код (примерно такой):
+    # welcome_text = f"FoodTracker Bot\n\nПросто напишите, что съели — я всё посчитаю!\n\nСтатус подписки: {format_subscription_status(subscription)}"
+    # 
+    # if not profile:
+    #     welcome_text += "\n\nДавайте познакомимся!\nЗаполните профиль, чтобы я мог рассчитывать вашу суточную норму калорий.\n\nИспользуйте команду /profile для настройки."
+    
+    # ЗАМЕНИТЬ НА:
+    sub_status = format_subscription_status(subscription)
+    
+    welcome_text = (
+        f"🍏 Привет! Я FoodTracker — твой умный дневник питания.\n\n"
+        f"🥗 Расскажи, что съел — я посчитаю калории, белки, жиры и углеводы.\n"
+        f"📊 Если заполнишь профиль — покажу процент от дневной нормы.\n\n"
+        f"✨ {sub_status}\n\n"
+        f"Попробуй прямо сейчас: «гречка 150г, отварная куриная грудка 150 грамм, салат из огурцов и томатов с оливковым маслом 150 грамм»"
+    )
     
     if not profile:
-        welcome_text += "\n\nДавайте познакомимся!\nЗаполните профиль, чтобы я мог рассчитывать вашу суточную норму калорий.\n\nИспользуйте команду /profile для настройки."
+        welcome_text += "\n\n📝 Давай познакомимся! Используй /profile чтобы я подсказывал твою норму."
+    # ========== КОНЕЦ ЗАМЕНЫ ==========
     
     await message.answer(welcome_text)
 
