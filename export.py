@@ -56,9 +56,13 @@ def export_users_to_excel(users: list) -> bytes:
         user_id = user.get("user_id", "")
         first_name = user.get("first_name", "")
         username = f"@{user['username']}" if user.get("username") else ""
+        
+        # Форматирование даты регистрации (ДД.ММ.ГГГГ)
         created_at = user.get("created_at", "")
         if created_at and len(created_at) >= 10:
-            created_at = created_at[:10]
+            parts = created_at[:10].split('-')
+            if len(parts) == 3:
+                created_at = f"{parts[2]}.{parts[1]}.{parts[0]}"
         
         # Определяем статус подписки и дату окончания
         status = ""
@@ -71,12 +75,18 @@ def export_users_to_excel(users: list) -> bytes:
             status = "Оплачена"
             end_date = user["paid_until"]
             if end_date and len(end_date) >= 10:
-                end_date = end_date[:10]
+                # Формат ДД.ММ.ГГГГ
+                parts = end_date[:10].split('-')
+                if len(parts) == 3:
+                    end_date = f"{parts[2]}.{parts[1]}.{parts[0]}"
         elif user.get("trial_end"):
             status = "Триал"
             end_date = user["trial_end"]
             if end_date and len(end_date) >= 10:
-                end_date = end_date[:10]
+                # Формат ДД.ММ.ГГГГ
+                parts = end_date[:10].split('-')
+                if len(parts) == 3:
+                    end_date = f"{parts[2]}.{parts[1]}.{parts[0]}"
         else:
             status = "Не активна"
             end_date = "-"

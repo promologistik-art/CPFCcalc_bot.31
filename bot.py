@@ -12,7 +12,6 @@ from aiogram.fsm.state import State, StatesGroup
 from config import BOT_TOKEN, ADMIN_ID, ADMIN_USERNAME, ADMIN_CONTACT, TRIAL_DAYS, SUBSCRIPTION_PRICE, ACTIVITY_LEVELS
 from food_search import FoodSearch
 from db import UserDB
-# === НОВОЕ: импорт для Excel ===
 from export import export_users_to_excel
 
 logging.basicConfig(level=logging.INFO)
@@ -106,7 +105,6 @@ def get_activity_keyboard():
         buttons.append([InlineKeyboardButton(text=value["name"], callback_data=f"activity_{key}")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-# === НОВОЕ: клавиатура Да/Нет для подтверждения ===
 def get_confirmation_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -155,6 +153,15 @@ async def get_user_id_or_username(user_input: str) -> int:
     else:
         return user_db.get_user_id_by_username(user_input)
 
+def format_date(date_str: str) -> str:
+    """Преобразует YYYY-MM-DD в DD.MM.YYYY"""
+    if not date_str:
+        return date_str
+    parts = date_str[:10].split('-')
+    if len(parts) == 3:
+        return f"{parts[2]}.{parts[1]}.{parts[0]}"
+    return date_str[:10]
+
 # ============ АДМИН-ПАНЕЛЬ ============
 
 @dp.message(Command("admin_panel", "adminpanel"))
@@ -166,7 +173,7 @@ async def cmd_admin_panel(message: types.Message):
     admin_text = (
         "Админ-панель\n\n"
         "/admin_users — список пользователей\n"
-        "/admin_export — выгрузить список в Excel 📊\n"  # === НОВОЕ ===
+        "/admin_export — выгрузить список в Excel 📊\n"
         "/admin_info user_id или @username — информация о пользователе\n"
         "/admin_add_user — добавить пользователя\n"
         "/admin_extend user_id или @username days — продлить подписку\n"
@@ -185,7 +192,6 @@ async def cmd_admin_panel(message: types.Message):
     
     await message.answer(admin_text)
 
-# === НОВОЕ: экспорт в Excel ===
 @dp.message(Command("admin_export"))
 async def cmd_admin_export(message: types.Message):
     if not is_admin(message.from_user.id, message.from_user.username):
@@ -499,7 +505,7 @@ async def cmd_admin_info(message: types.Message):
         text = f"Информация о пользователе {parts[1]} (ID: {user_id})\n\n"
         text += f"Имя: {user_info.get('first_name', 'Не указано')}\n"
         text += f"Username: @{user_info.get('username', 'нет')}\n"
-        text += f"Зарегистрирован: {user_info.get('created_at', 'Неизвестно')[:10]}\n"
+        text += f"Зарегистрирован: {format_date(user_info.get('created_at', ''))}\n"
         text += f"Статистика за сегодня:\n"
         text += f"   Калории: {user_info.get('calories', 0):.0f} ккал\n"
         text += f"   Белки: {user_info.get('protein', 0):.1f} г\n"
@@ -510,9 +516,9 @@ async def cmd_admin_info(message: types.Message):
         if sub.get('is_forever'):
             text += f"Подписка: бессрочная\n"
         elif sub.get('paid_until'):
-            text += f"Подписка: до {sub['paid_until']}\n"
+            text += f"Подписка: до {format_date(sub['paid_until'])}\n"
         elif sub.get('trial_end'):
-            text += f"Тестовый период: до {sub['trial_end']}\n"
+            text += f"Тестовый период: до {format_date(sub['trial_end'])}\n"
         
         ref_stats = user_info.get('referral_stats', {})
         text += f"\nРеферальная статистика:\n"
@@ -542,14 +548,14 @@ async def cmd_admin_users(message: types.Message):
         text += f"Имя: {u['first_name']}\n"
         if u['username']:
             text += f"Username: @{u['username']}\n"
-        text += f"Регистрация: {u['created_at'][:10]}\n"
+        text += f"Регистрация: {format_date(u['created_at'])}\n"
         
         if u.get('is_forever'):
             text += f"Подписка: бессрочная\n"
         elif u.get('paid_until'):
-            text += f"Оплачено до: {u['paid_until']}\n"
+            text += f"Оплачено до: {format_date(u['paid_until'])}\n"
         elif u.get('trial_end'):
-            text += f"Триал до: {u['trial_end']}\n"
+            text += f"Триал до: {format_date(u['trial_end'])}\n"
         text += "─" * 20 + "\n"
     
     await message.answer(text)
@@ -701,7 +707,7 @@ async def cmd_ref_link_info(message: types.Message):
     text += f"Реферал: {username}\n"
     text += f"Комиссия: {info['commission_percent']}%\n"
     text += f"Бонус рефералу: {info['bonus_months']} мес\n"
-    text += f"Создана: {info['created_at'][:10]}\n"
+    text += f"Создана: {format_date(info['created_at'])}\n"
     text += f"Статистика:\n"
     text += f"   Переходов: {info['total_refs']}\n"
     text += f"   Оплатили: {info['paid_refs']}"
@@ -923,7 +929,6 @@ async def handle_clear_callback(callback: types.CallbackQuery):
         await callback.message.edit_text("Отменено.")
     await callback.answer()
 
-# === НОВОЕ: обработчик callback для подтверждения ===
 @dp.callback_query(lambda c: c.data.startswith("confirm_"))
 async def handle_confirmation_callback(callback: types.CallbackQuery, state: FSMContext):
     action = callback.data.replace("confirm_", "")
@@ -931,7 +936,6 @@ async def handle_confirmation_callback(callback: types.CallbackQuery, state: FSM
     original_products = data.get("original_products", [])
     
     if action == "yes":
-        # Сохраняем продукты
         for p in original_products:
             product_data = extract_product_data(p)
             user_db.add_meal(callback.from_user.id, product_data)
@@ -948,7 +952,7 @@ async def handle_confirmation_callback(callback: types.CallbackQuery, state: FSM
         await callback.message.edit_text(response)
         await state.clear()
         
-    else:  # action == "no"
+    else:
         await callback.message.edit_text(
             "❌ Не записано.\n\n"
             "Напишите правильные данные, например:\n"
@@ -957,7 +961,6 @@ async def handle_confirmation_callback(callback: types.CallbackQuery, state: FSM
             "или\n"
             "удали яйца"
         )
-        # Оставляем состояние для корректировки
     
     await callback.answer()
 
@@ -970,8 +973,6 @@ async def handle_correction(message: types.Message, state: FSMContext):
     data = await state.get_data()
     original_products = data.get("original_products", [])
     
-    # === НОВОЕ: поддержка ответа на сообщение с кнопками ===
-    # Если пользователь отвечает текстом "да" или "нет" на сообщение с кнопками
     if is_affirmative(user_text_lower):
         for p in original_products:
             product_data = extract_product_data(p)
@@ -1035,7 +1036,6 @@ async def handle_correction(message: types.Message, state: FSMContext):
             result_text += "\n\nЗаписываю?"
             
             await state.update_data(original_products=new_products)
-            # === НОВОЕ: отправляем с кнопками ===
             await message.answer(result_text, reply_markup=get_confirmation_keyboard())
         return
     
@@ -1075,7 +1075,6 @@ async def handle_correction(message: types.Message, state: FSMContext):
         result_text += "\n\nЗаписываю?"
         
         await state.update_data(original_products=new_products)
-        # === НОВОЕ: отправляем с кнопками ===
         await message.answer(result_text, reply_markup=get_confirmation_keyboard())
         return
     
@@ -1128,7 +1127,6 @@ async def handle_message(message: types.Message, state: FSMContext):
     await state.set_state(WaitingState.waiting_for_correction)
     await state.update_data(original_products=products, original_message=message.text)
     
-    # === НОВОЕ: формируем текст и отправляем с кнопками ===
     if user_text:
         full_text = user_text + "\n\nЗаписываю?"
     else:
