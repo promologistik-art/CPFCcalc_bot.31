@@ -5,7 +5,10 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 OPENAI_BASE_URL = "https://routerai.ru/api/v1"
-OPENAI_MODEL = "deepseek/deepseek-v3.2"
+
+# Основная и резервная модели
+OPENAI_MODEL = "deepseek/deepseek-v4-flash"        # Основная (быстрая)
+OPENAI_MODEL_FALLBACK = "deepseek/deepseek-v4-pro"  # Резервная (если основная не отвечает)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -21,7 +24,7 @@ USER_DB_PATH = os.path.join(DATA_DIR, "users.db")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 TRIAL_DAYS = 5
-REFERRAL_BONUS_DAYS = 3  # бонусные дни за переход по реферальной ссылке
+REFERRAL_BONUS_DAYS = 3
 SUBSCRIPTION_PRICE = 300
 ADMIN_CONTACT = f"@{ADMIN_USERNAME}" if ADMIN_USERNAME else "@silverzen"
 
