@@ -181,7 +181,8 @@ async def cmd_admin_panel(message: types.Message):
         "/admin_activate user_id или @username [days] — активация подписки\n\n"
         "Рассылка:\n"
         "/broadcast_all текст — рассылка всем пользователям\n"
-        "/broadcast_active текст — рассылка только активным\n\n"
+        "/broadcast_active текст — рассылка только активным\n"
+        "(или ответьте на сообщение командой /broadcast_all)\n\n"
         "Бэкап:\n"
         "/backup — скачать базу данных users.db\n\n"
         "Реферальные команды:\n"
@@ -229,9 +230,6 @@ async def cmd_backup(message: types.Message):
         with open(USER_DB_PATH, 'rb') as f:
             file_data = f.read()
         
-        file_io = io.BytesIO(file_data)
-        file_io.name = "users.db"
-        
         await message.answer_document(
             document=types.BufferedInputFile(file_data, filename="users.db"),
             caption="Бэкап базы данных users.db"
@@ -248,9 +246,19 @@ async def cmd_broadcast_all(message: types.Message, state: FSMContext):
         await message.answer("Нет доступа")
         return
     
+    # Получаем текст после команды или из reply-to сообщения
     text = message.text.replace("/broadcast_all", "").strip()
+    
+    # Если текст не в команде, проверяем reply
+    if not text and message.reply_to_message and message.reply_to_message.text:
+        text = message.reply_to_message.text.strip()
+    
     if not text:
-        await message.answer("Использование: /broadcast_all текст сообщения")
+        await message.answer(
+            "Использование:\n"
+            "/broadcast_all текст сообщения\n"
+            "или ответьте на сообщение командой /broadcast_all"
+        )
         return
     
     users = user_db.get_all_user_ids()
@@ -270,9 +278,19 @@ async def cmd_broadcast_active(message: types.Message, state: FSMContext):
         await message.answer("Нет доступа")
         return
     
+    # Получаем текст после команды или из reply-to сообщения
     text = message.text.replace("/broadcast_active", "").strip()
+    
+    # Если текст не в команде, проверяем reply
+    if not text and message.reply_to_message and message.reply_to_message.text:
+        text = message.reply_to_message.text.strip()
+    
     if not text:
-        await message.answer("Использование: /broadcast_active текст сообщения")
+        await message.answer(
+            "Использование:\n"
+            "/broadcast_active текст сообщения\n"
+            "или ответьте на сообщение командой /broadcast_active"
+        )
         return
     
     users = user_db.get_active_user_ids()
@@ -850,14 +868,6 @@ async def cmd_start(message: types.Message, state: FSMContext):
     subscription = user_db.get_subscription_status(message.from_user.id)
     profile = user_db.get_profile(message.from_user.id)
     
-    # ========== ВОТ ЭТОТ БЛОК НУЖНО ЗАМЕНИТЬ ==========
-    # Старый код (примерно такой):
-    # welcome_text = f"FoodTracker Bot\n\nПросто напишите, что съели — я всё посчитаю!\n\nСтатус подписки: {format_subscription_status(subscription)}"
-    # 
-    # if not profile:
-    #     welcome_text += "\n\nДавайте познакомимся!\nЗаполните профиль, чтобы я мог рассчитывать вашу суточную норму калорий.\n\nИспользуйте команду /profile для настройки."
-    
-    # ЗАМЕНИТЬ НА:
     sub_status = format_subscription_status(subscription)
     
     welcome_text = (
@@ -870,7 +880,6 @@ async def cmd_start(message: types.Message, state: FSMContext):
     
     if not profile:
         welcome_text += "\n\n📝 Давай познакомимся! Используй /profile чтобы я подсказывал твою норму."
-    # ========== КОНЕЦ ЗАМЕНЫ ==========
     
     await message.answer(welcome_text)
 
@@ -985,6 +994,10 @@ async def handle_confirmation_callback(callback: types.CallbackQuery, state: FSM
 
 @dp.message(WaitingState.waiting_for_correction)
 async def handle_correction(message: types.Message, state: FSMContext):
+    # Пропускаем сообщения без текста
+    if not message.text:
+        return
+    
     user_text = message.text.strip()
     user_text_lower = user_text.lower()
     data = await state.get_data()
@@ -1104,7 +1117,7 @@ async def handle_correction(message: types.Message, state: FSMContext):
 
 # ============ ОСНОВНОЙ ОБРАБОТЧИК ============
 
-@dp.message()
+@dp.message(lambda message: message.text)
 async def handle_message(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     
